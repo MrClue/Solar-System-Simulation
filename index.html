@@ -4,196 +4,350 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Solar System Simulation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Roboto:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="css/styles.css" />
+    <!-- Three.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <!-- OrbitControls for camera manipulation -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <!-- CSS2DRenderer for labels -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/renderers/CSS2DRenderer.js"></script>
+    <!-- GSAP for smooth animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
   </head>
   <body>
-    <!-- Canvas container with info panel -->
-    <div id="canvas-container">
-      <canvas id="solarSystem"></canvas>
-      <div id="info-panel">
-        <h2>Solar System Simulation</h2>
-        <p id="selected-planet">Select a planet to see details</p>
-        <p>Click on a planet to focus on it</p>
-        <p>Scroll to zoom in/out</p>
-        <p>Drag to pan the view</p>
-      </div>
-    </div>
+    <div class="app-container">
+      <!-- Main canvas container -->
+      <div id="canvas-container">
+        <canvas id="solarSystem"></canvas>
 
-    <!-- Controls section -->
-    <div id="controls">
-      <div class="control-group">
-        <!-- Speed control -->
-        <div class="speed-control">
-          <label for="speed-slider">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M8 3.5V1M8 15V12.5M3.5 8H1M15 8H12.5M12.9 12.9L11.1 11.1M12.9 3.1L11.1 4.9M3.1 12.9L4.9 11.1M3.1 3.1L4.9 4.9"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
-            Speed
-          </label>
-          <div class="slider-container">
-            <input
-              type="range"
-              id="speed-slider"
-              min="0"
-              max="100"
-              step="1"
-              value="0"
-            />
-            <span id="speed-value">1.0 days/sec</span>
+        <!-- Loading screen -->
+        <div id="loading-screen">
+          <div class="loader-container">
+            <div class="loader"></div>
+            <div class="loader-orbit"></div>
           </div>
-          <span id="date-display">Feb 28, 2025 12:00</span>
+          <p>INITIALIZING SOLAR SYSTEM</p>
+          <div class="loading-bar-container">
+            <div class="loading-bar"></div>
+          </div>
         </div>
 
-        <!-- Calendar controls -->
-        <div class="calendar-controls">
-          <label for="date-picker">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <rect
-                x="2"
-                y="3"
-                width="12"
-                height="11"
-                rx="1"
-                stroke="currentColor"
-                stroke-width="2"
-              />
-              <path
-                d="M2 6H14M5 2V4M11 2V4"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
-            Date
-          </label>
-          <input type="date" id="date-picker" value="2025-02-28" />
-          <label for="time-picker">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle
-                cx="8"
-                cy="8"
-                r="6"
-                stroke="currentColor"
-                stroke-width="2"
-              />
-              <path
-                d="M8 4.5V8L10.5 10.5"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
-            Time
-          </label>
-          <input type="time" id="time-picker" value="12:00" />
-          <button id="set-date">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M13.5 8.5L6 14L2.5 11"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            Set Date
-          </button>
+        <!-- Planet info panel -->
+        <div id="info-panel" class="glass-panel">
+          <div class="panel-header">
+            <h2>SOLAR SYSTEM</h2>
+            <button class="minimize-btn" id="toggle-info">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M2 8H14"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+          <div class="panel-content">
+            <p id="selected-planet">Select a planet to see details</p>
+            <div class="planet-stats">
+              <div class="stat-item">
+                <span class="stat-label">ORBIT</span>
+                <span class="stat-value" id="orbit-period">-</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">ROTATION</span>
+                <span class="stat-value" id="rotation-period">-</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">DISTANCE</span>
+                <span class="stat-value" id="distance-value">-</span>
+              </div>
+            </div>
+            <div class="controls-help">
+              <div class="help-item">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="8"
+                    cy="8"
+                    r="7"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                  />
+                  <path
+                    d="M8 4V8L10 10"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <span>Click planet to focus</span>
+              </div>
+              <div class="help-item">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M8 2V14M2 8H14"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <span>Scroll to zoom</span>
+              </div>
+              <div class="help-item">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M4 8C4 5.79086 5.79086 4 8 4C10.2091 4 12 5.79086 12 8C12 10.2091 10.2091 12 8 12C5.79086 12 4 10.2091 4 8Z"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                  />
+                  <path
+                    d="M8 1V3M8 13V15M1 8H3M13 8H15"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <span>Drag to rotate view</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Button controls -->
-      <div class="control-group">
-        <div class="button-group">
-          <span id="current-time"></span>
-          <button id="play-pause">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M5 3H7V13H5V3ZM9 3H11V13H9V3Z" fill="currentColor" />
-            </svg>
-            Pause
-          </button>
-          <button id="reset">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8C14 11.3137 11.3137 14 8 14"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
+      <!-- Control panel -->
+      <div id="controls" class="glass-panel">
+        <div class="controls-header">
+          <div class="current-time" id="current-time">
+            CURRENT: FEB 28, 2025 12:00
+          </div>
+          <div class="sim-time" id="date-display">FEB 28, 2025 12:00</div>
+        </div>
+
+        <div class="controls-body">
+          <!-- Speed control -->
+          <div class="control-section">
+            <div class="section-header">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M8 3.5V1M8 15V12.5M3.5 8H1M15 8H12.5M12.9 12.9L11.1 11.1M12.9 3.1L11.1 4.9M3.1 12.9L4.9 11.1M3.1 3.1L4.9 4.9"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <span>SIMULATION SPEED</span>
+            </div>
+            <div class="slider-container">
+              <input
+                type="range"
+                id="speed-slider"
+                min="0"
+                max="100"
+                step="1"
+                value="0"
               />
-              <path
-                d="M8 5L5 2M5 2L8 -1M5 2H11"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            Reset View
-          </button>
-          <button id="current-position">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle
-                cx="8"
-                cy="8"
-                r="6"
-                stroke="currentColor"
-                stroke-width="2"
-              />
-              <path
-                d="M8 4.5V8L10.5 10.5"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
-            Current Date
-          </button>
+              <span id="speed-value">1.0 days/sec</span>
+            </div>
+          </div>
+
+          <!-- Date control -->
+          <div class="control-section">
+            <div class="section-header">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect
+                  x="2"
+                  y="3"
+                  width="12"
+                  height="11"
+                  rx="1"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                />
+                <path
+                  d="M2 6H14M5 2V4M11 2V4"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <span>DATE & TIME</span>
+            </div>
+            <div class="date-time-controls">
+              <div class="date-input">
+                <input type="date" id="date-picker" value="2025-02-28" />
+              </div>
+              <div class="time-input">
+                <input type="time" id="time-picker" value="12:00" />
+              </div>
+              <button id="set-date" class="action-button">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M13.5 8.5L6 14L2.5 11"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                SET
+              </button>
+            </div>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="control-section">
+            <div class="section-header">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8C14 11.3137 11.3137 14 8 14"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M8 5L5 2M5 2L8 -1M5 2H11"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>ACTIONS</span>
+            </div>
+            <div class="button-group">
+              <button id="play-pause" class="action-button primary">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M5 3H7V13H5V3ZM9 3H11V13H9V3Z" fill="currentColor" />
+                </svg>
+                PAUSE
+              </button>
+              <button id="reset" class="action-button warning">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8C14 11.3137 11.3137 14 8 14"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M8 5L5 2M5 2L8 -1M5 2H11"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                RESET
+              </button>
+              <button id="current-position" class="action-button">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="8"
+                    cy="8"
+                    r="6"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                  />
+                  <path
+                    d="M8 4.5V8L10.5 10.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                NOW
+              </button>
+              <button id="toggle-labels" class="action-button">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M2 4H14M2 8H14M2 12H14"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                LABELS
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
