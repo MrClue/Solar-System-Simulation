@@ -601,6 +601,7 @@ function init() {
 
     // Clear previous selection first
     selectedPlanet = null;
+    followingPlanet = null;
     distanceInfo.style.display = "none";
     distanceCtx.clearRect(0, 0, distanceLine.width, distanceLine.height);
 
@@ -622,18 +623,28 @@ function init() {
         }<br>
           Orbit period: ${planet.daysInYear.toFixed(1)} days<br>
           Rotation period: ${planet.rotationPeriod} days`;
-        if (!isPlaying) {
-          draw();
-        }
+
+        // Force an immediate camera update and redraw
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const position = calculatePlanetPosition(planet, currentSimDate);
+        const drawX = position.x * zoom + cameraX;
+        const drawY = position.y * zoom + cameraY;
+        cameraX = centerX - (drawX - cameraX);
+        cameraY = centerY - (drawY - cameraY);
+
+        // Always trigger a redraw when selecting a planet
+        draw();
         return;
       }
     }
 
     // If no planet was clicked, update the info panel
     selectedPlanetInfo.textContent = "Select a planet to see details";
-    if (!isPlaying) {
-      draw();
-    }
+    // Center the view when no planet is selected
+    cameraX = canvas.width / 2;
+    cameraY = canvas.height / 2;
+    draw();
   });
 
   // Zoom with mouse wheel
