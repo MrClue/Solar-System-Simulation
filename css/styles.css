@@ -1,6 +1,5 @@
 body {
   margin: 0;
-  overflow: hidden;
   background-color: #000;
   font-family: Arial, sans-serif;
   color: white;
@@ -25,7 +24,6 @@ canvas {
 }
 
 #controls {
-  overflow-y: hidden;
   padding: 15px 25px;
   background-color: rgba(13, 17, 23, 0.95);
   border-top: 1px solid rgba(88, 166, 255, 0.2);
@@ -34,17 +32,27 @@ canvas {
   box-sizing: border-box;
 }
 
-.control-group {
+/* Common styles for control containers */
+.control-group,
+.speed-control,
+.calendar-controls,
+.button-group {
+  border-radius: 8px;
+  border: 1px solid rgba(88, 166, 255, 0.1);
+  background: rgba(88, 166, 255, 0.05);
+  padding: 10px 15px;
+  max-width: 100%;
+  min-width: 0;
   overflow-y: auto;
+}
+
+.control-group {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
   margin-bottom: 15px;
   padding: 15px;
-  border-radius: 8px;
   background-color: rgba(22, 27, 34, 0.7);
-  border: 1px solid rgba(88, 166, 255, 0.1);
-  min-width: 0;
 }
 
 .control-group:last-child {
@@ -68,6 +76,39 @@ canvas {
   flex-shrink: 0;
 }
 
+/* Speed control section */
+.speed-control {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.speed-control .slider-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 200px;
+  flex-grow: 1;
+}
+
+/* Calendar controls */
+.calendar-controls {
+  display: grid;
+  grid-template-columns: auto minmax(100px, 1fr) auto minmax(100px, 1fr) auto;
+  align-items: center;
+  gap: 15px;
+}
+
+/* Button group */
+.button-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Input styles */
 input[type="range"] {
   -webkit-appearance: none;
   width: 100%;
@@ -156,57 +197,7 @@ input[type="time"]::-webkit-inner-spin-button {
   display: none;
 }
 
-/* Speed control section */
-.speed-control {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  gap: 15px;
-  padding: 10px 15px;
-  background: rgba(88, 166, 255, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(88, 166, 255, 0.1);
-  max-width: 100%;
-  min-width: 0;
-}
-
-.speed-control .slider-container {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  min-width: 200px;
-  flex-grow: 1;
-}
-
-/* Calendar controls */
-.calendar-controls {
-  overflow-y: auto;
-  display: grid;
-  grid-template-columns: auto minmax(100px, 1fr) auto minmax(100px, 1fr) auto;
-  align-items: center;
-  gap: 15px;
-  padding: 10px 15px;
-  background: rgba(88, 166, 255, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(88, 166, 255, 0.1);
-  max-width: 100%;
-}
-
-/* Button group */
-.button-group {
-  overflow-y: auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 15px;
-  background: rgba(88, 166, 255, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(88, 166, 255, 0.1);
-  flex-wrap: wrap;
-  max-width: 100%;
-}
-
-/* Value displays */
+/* Value displays - common styles */
 #date-display,
 #speed-value,
 #current-time {
@@ -217,31 +208,31 @@ input[type="time"]::-webkit-inner-spin-button {
   border-radius: 6px;
   background: rgba(88, 166, 255, 0.1);
   border: 1px solid rgba(88, 166, 255, 0.2);
-  min-width: 140px;
   display: inline-block;
   text-align: center;
-  white-space: nowrap;
-  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 #current-time {
   order: -1;
   margin-left: 0;
   margin-right: auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 140px;
 }
 
 #speed-value {
   max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 100px;
 }
 
+#date-display {
+  min-width: 140px;
+}
+
+/* Button styles */
 button {
   background-color: rgba(88, 166, 255, 0.1);
   color: #58a6ff;
@@ -262,10 +253,6 @@ button {
   gap: 8px;
 }
 
-#set-date {
-  min-width: 120px;
-}
-
 button svg {
   flex-shrink: 0;
 }
@@ -280,6 +267,7 @@ button:active {
   transform: translateY(0);
 }
 
+/* Special button styles */
 #play-pause {
   background-color: rgba(46, 160, 67, 0.1);
   color: #2ea043;
@@ -302,6 +290,7 @@ button:active {
   border-color: #f85149;
 }
 
+/* Info panel */
 #info-panel {
   position: absolute;
   top: 20px;
@@ -315,8 +304,7 @@ button:active {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-h1,
-h2 {
+h1, h2 {
   margin: 0 0 10px 0;
   color: #4fc3f7;
 }
@@ -338,7 +326,6 @@ p {
   transition: opacity 0.3s;
 }
 
-/* Selected planet styles */
 .planet-label.selected {
   color: #4fc3f7;
   font-size: 14px;
@@ -366,77 +353,24 @@ p {
   align-items: center;
 }
 
-#speed-value,
-#date-display {
-  flex-shrink: 0;
-  min-width: 140px;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: inline-block;
-  text-align: center;
-}
-
+/* Media queries - consolidated */
 @media (max-width: 1024px) {
-  .control-group {
-    grid-template-columns: 1fr;
-  }
-  .speed-control {
-    grid-template-columns: 1fr;
-  }
+  .control-group,
+  .speed-control,
   .calendar-controls {
     grid-template-columns: 1fr;
   }
-  #speed-value, #date-display, #current-time {
+  
+  #speed-value, 
+  #date-display, 
+  #current-time {
     min-width: auto;
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 }
 
 @media (max-width: 768px) {
-  .control-group {
-    grid-template-columns: 1fr;
-  }
-  .speed-control {
-    grid-template-columns: 1fr;
-  }
-  .calendar-controls {
-    grid-template-columns: 1fr;
-  }
   .button-group {
     justify-content: center;
-  }
-  #speed-value, #date-display, #current-time {
-    min-width: auto;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-@media (max-width: 480px) {
-  .control-group {
-    grid-template-columns: 1fr;
-  }
-  .speed-control {
-    grid-template-columns: 1fr;
-  }
-  .calendar-controls {
-    grid-template-columns: 1fr;
-  }
-  .button-group {
-    justify-content: center;
-  }
-  #speed-value, #date-display, #current-time {
-    min-width: auto;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 } 
