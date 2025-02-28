@@ -374,18 +374,22 @@ function createOrbits() {
     const adjustedRadius = displayRadius + randomOffset;
 
     const orbitGeometry = new THREE.RingGeometry(
-      adjustedRadius - 10, // Wider orbit line
-      adjustedRadius + 10, // Wider orbit line
+      adjustedRadius - 20, // Wider orbit line (increased from 10 to 20)
+      adjustedRadius + 20, // Wider orbit line (increased from 10 to 20)
       128
     );
     const orbitMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff, // Brighter color
+      color: data.color, // Use the planet's color for its orbit
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.9, // Higher opacity
+      opacity: 0.5, // Slightly reduced opacity to prevent visual overload
     });
     const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
     orbit.rotation.x = Math.PI / 2;
+
+    // Store the default opacity for later use
+    orbit.userData.defaultOpacity = 0.5;
+
     scene.add(orbit);
     orbits[name] = orbit;
 
@@ -405,21 +409,65 @@ function createLabels() {
     // Position labels above objects with appropriate scaling
     const labelHeight = name === "Sun" ? data.radius * 2 : data.radius * 4;
 
-    // For Uranus, adjust the label position to account for its tilt
+    // For Uranus, create a special handling due to its axial tilt
     if (name === "Uranus") {
-      // Position the label along the y-axis instead of the tilted axis
-      labelObject.position.set(0, labelHeight, 0);
-    } else {
-      labelObject.position.set(0, labelHeight, 0);
-    }
+      // Create a non-rotating container for the label that will follow the planet
+      const labelContainer = new THREE.Object3D();
+      scene.add(labelContainer);
 
-    if (name === "Sun") {
-      sun.add(labelObject);
+      // Store the planet reference for updating the container position
+      labelContainer.userData = { planetName: name };
+
+      // Position the label above the planet
+      labelObject.position.set(0, labelHeight, 0);
+      labelContainer.add(labelObject);
+
+      // Store the label container for updates
+      labels[name] = {
+        object: labelObject,
+        container: labelContainer,
+      };
     } else {
-      planets[name].add(labelObject);
+      // Standard label positioning for other planets
+      labelObject.position.set(0, labelHeight, 0);
+
+      if (name === "Sun") {
+        sun.add(labelObject);
+      } else {
+        planets[name].add(labelObject);
+      }
+
+      labels[name] = labelObject;
     }
-    labels[name] = labelObject;
   });
+
+  // Add a function to update Uranus's label position during animation
+  updateUranusLabel();
+}
+
+// Function to update Uranus's label position
+function updateUranusLabel() {
+  // Check if Uranus label exists and has a container
+  if (labels["Uranus"] && labels["Uranus"].container) {
+    const uranus = planets["Uranus"];
+    if (!uranus) return;
+
+    // Get Uranus's current world position
+    uranus.updateWorldMatrix(true, false);
+    const uranusPosition = new THREE.Vector3();
+    uranusPosition.setFromMatrixPosition(uranus.matrixWorld);
+
+    // Get the label height from the planet data
+    const uranusData = PLANET_DATA["Uranus"];
+    const labelHeight = uranusData.radius * 4; // Same as other planets
+
+    // Position the container at Uranus's position
+    labels["Uranus"].container.position.copy(uranusPosition);
+
+    // Ensure the label is always positioned directly above the planet in world space
+    // regardless of the planet's rotation
+    labels["Uranus"].object.position.set(0, labelHeight, 0);
+  }
 }
 
 function setupLighting() {
@@ -539,6 +587,9 @@ function animate() {
   if (followingPlanet && selectedPlanet) {
     updateCameraFollow();
   }
+
+  // Update Uranus label position
+  updateUranusLabel();
 
   controls.update();
   renderer.render(scene, camera);
@@ -668,6 +719,19 @@ function updateSpeedDisplay() {
 }
 
 function resetView() {
+  // Reset orbit highlights
+  resetOrbitHighlights();
+
+  // Reset following state
+  followingPlanet = false;
+  selectedPlanet = null;
+
+  // Hide follow indicator
+  const followIndicator = document.getElementById("follow-indicator");
+  if (followIndicator) {
+    followIndicator.style.display = "none";
+  }
+
   // Use the same function to reset view
   zoomToShowEntireSolarSystem();
 }
@@ -739,6 +803,7 @@ function initEventListeners() {
       if (followingPlanet) {
         followingPlanet = false;
         selectedPlanet = null;
+        resetOrbitHighlights(); // Reset orbit highlights when stopping follow
         const followIndicator = document.getElementById("follow-indicator");
         if (followIndicator) {
           followIndicator.style.display = "none";
@@ -800,8 +865,16 @@ function onMouseClick(event) {
 
 function toggleLabels() {
   showLabels = !showLabels;
-  Object.values(labels).forEach((label) => {
-    label.element.style.display = showLabels ? "block" : "none";
+
+  // Update all labels visibility
+  Object.entries(labels).forEach(([name, label]) => {
+    // Check if this is a special label with container (like Uranus)
+    if (label.object && label.container) {
+      label.object.element.style.display = showLabels ? "block" : "none";
+    } else {
+      // Regular label
+      label.element.style.display = showLabels ? "block" : "none";
+    }
   });
 }
 
@@ -840,6 +913,9 @@ function focusOnPlanet(object) {
 
   if (!objectName) return; // Object not found
 
+  // Reset all orbit lines to their default appearance
+  resetOrbitHighlights();
+
   // Get the position of the object
   let position;
   let data;
@@ -852,6 +928,9 @@ function focusOnPlanet(object) {
     position = planets[objectName].position.clone();
     data = PLANET_DATA[objectName];
     selectedPlanet = objectName;
+
+    // Highlight this planet's orbit
+    highlightOrbit(objectName);
   } else if (objectType === "moon") {
     // For moons, we need to get the world position
     const moonObj = planets[parentPlanet].moons[objectName];
@@ -860,6 +939,9 @@ function focusOnPlanet(object) {
     position.setFromMatrixPosition(moonObj.moon.matrixWorld);
     data = PLANET_DATA[parentPlanet].moons.find((m) => m.name === objectName);
     selectedPlanet = objectName;
+
+    // Highlight the parent planet's orbit when a moon is selected
+    highlightOrbit(parentPlanet);
   }
 
   // Set following mode
@@ -897,6 +979,56 @@ function focusOnPlanet(object) {
     document.getElementById("follow-indicator") || createFollowIndicator();
   followIndicator.textContent = `Following: ${objectName}`;
   followIndicator.style.display = "block";
+}
+
+// Function to highlight a planet's orbit
+function highlightOrbit(planetName) {
+  if (orbits[planetName]) {
+    // Increase opacity and add glow effect
+    gsap.to(orbits[planetName].material, {
+      opacity: 1.0,
+      duration: 0.5,
+    });
+
+    // Make the orbit line slightly wider
+    const orbit = orbits[planetName];
+    const currentRadius = orbit.geometry.parameters.outerRadius;
+    const innerRadius = orbit.geometry.parameters.innerRadius;
+    const centerRadius = (innerRadius + currentRadius) / 2;
+    const width = currentRadius - innerRadius;
+
+    // Create a new geometry with slightly wider dimensions
+    orbit.geometry.dispose();
+    orbit.geometry = new THREE.RingGeometry(
+      centerRadius - width * 0.6,
+      centerRadius + width * 0.6,
+      128
+    );
+  }
+}
+
+// Function to reset all orbit highlights
+function resetOrbitHighlights() {
+  Object.entries(orbits).forEach(([name, orbit]) => {
+    // Reset opacity to default
+    gsap.to(orbit.material, {
+      opacity: orbit.userData.defaultOpacity,
+      duration: 0.5,
+    });
+
+    // Reset orbit width
+    const currentRadius = orbit.geometry.parameters.outerRadius;
+    const innerRadius = orbit.geometry.parameters.innerRadius;
+    const centerRadius = (innerRadius + currentRadius) / 2;
+
+    // Create a new geometry with original dimensions
+    orbit.geometry.dispose();
+    orbit.geometry = new THREE.RingGeometry(
+      centerRadius - 20,
+      centerRadius + 20,
+      128
+    );
+  });
 }
 
 // Create a follow indicator element if it doesn't exist
