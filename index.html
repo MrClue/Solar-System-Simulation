@@ -9,11 +9,9 @@
   <body>
     <div id="canvas-container">
       <canvas id="solarSystem"></canvas>
-
       <div id="info-panel">
         <h2>Solar System Simulation</h2>
         <p id="selected-planet">Select a planet to see details</p>
-        <p id="current-time"></p>
         <p>Click on a planet to focus on it</p>
         <p>Scroll to zoom in/out</p>
         <p>Drag to pan the view</p>
@@ -22,33 +20,176 @@
 
     <div id="controls">
       <div class="control-group">
-        <label for="speed-slider">Speed:</label>
-        <input
-          type="range"
-          id="speed-slider"
-          min="0"
-          max="100"
-          step="1"
-          value="0"
-        />
-        <span id="speed-value">1.0 days/sec</span>
+        <div class="speed-control">
+          <label for="speed-slider">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M8 3.5V1M8 15V12.5M3.5 8H1M15 8H12.5M12.9 12.9L11.1 11.1M12.9 3.1L11.1 4.9M3.1 12.9L4.9 11.1M3.1 3.1L4.9 4.9"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+            Speed
+          </label>
+          <div class="slider-container">
+            <input
+              type="range"
+              id="speed-slider"
+              min="0"
+              max="100"
+              step="1"
+              value="0"
+            />
+            <span id="speed-value">1.0 days/sec</span>
+          </div>
+          <span id="date-display">Feb 28, 2025 12:00</span>
+        </div>
 
         <div class="calendar-controls">
-          <label for="date-picker">Date:</label>
+          <label for="date-picker">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect
+                x="2"
+                y="3"
+                width="12"
+                height="11"
+                rx="1"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <path
+                d="M2 6H14M5 2V4M11 2V4"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+            Date
+          </label>
           <input type="date" id="date-picker" value="2025-02-28" />
-
-          <label for="time-picker">Time:</label>
+          <label for="time-picker">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="8"
+                cy="8"
+                r="6"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <path
+                d="M8 4.5V8L10.5 10.5"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+            Time
+          </label>
           <input type="time" id="time-picker" value="12:00" />
-
-          <button id="set-date">Set Date</button>
+          <button id="set-date">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M13.5 8.5L6 14L2.5 11"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            Set Date
+          </button>
         </div>
       </div>
 
-      <div class="button-group">
-        <button id="play-pause">Pause</button>
-        <button id="reset">Reset View</button>
-        <button id="current-position">Current Date</button>
-        <span id="date-display">Feb 28, 2025 12:00</span>
+      <div class="control-group">
+        <div class="button-group">
+          <span id="current-time"></span>
+          <button id="play-pause">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M5 3H7V13H5V3ZM9 3H11V13H9V3Z" fill="currentColor" />
+            </svg>
+            Pause
+          </button>
+          <button id="reset">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8C14 11.3137 11.3137 14 8 14"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+              <path
+                d="M8 5L5 2M5 2L8 -1M5 2H11"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            Reset View
+          </button>
+          <button id="current-position">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="8"
+                cy="8"
+                r="6"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <path
+                d="M8 4.5V8L10.5 10.5"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+            Current Date
+          </button>
+        </div>
       </div>
     </div>
 

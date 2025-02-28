@@ -562,6 +562,10 @@ function init() {
     } else {
       speedValue.textContent = `${daysPerSecond.toFixed(1)} days/sec`;
     }
+
+    // Update slider fill
+    const percent = ((this.value - this.min) / (this.max - this.min)) * 100;
+    this.style.setProperty("--slider-fill", `${percent}%`);
   });
 
   playPauseButton.addEventListener("click", function () {
@@ -702,6 +706,13 @@ function init() {
 
   // Start animation
   requestAnimationFrame(draw);
+
+  // Set initial slider fill
+  const percent =
+    ((speedSlider.value - speedSlider.min) /
+      (speedSlider.max - speedSlider.min)) *
+    100;
+  speedSlider.style.setProperty("--slider-fill", `${percent}%`);
 }
 
 // Remove the duplicate initialization code from the end of the file
