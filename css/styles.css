@@ -116,4 +116,37 @@ p {
 #current-time {
   margin-left: 10px;
   color: #4fc3f7;
+}
+
+/* Planet label styles */
+.planet-label {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.3s;
+}
+
+/* Selected planet styles */
+.planet-label.selected {
+  color: #4fc3f7;
+  font-size: 14px;
+  text-shadow: 0 0 8px rgba(79, 195, 247, 0.5);
+}
+
+/* Distance indicator styles */
+.distance-info {
+  position: absolute;
+  color: #4fc3f7;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(79, 195, 247, 0.3);
 } 

@@ -2,10 +2,40 @@
 const canvas = document.getElementById("solarSystem");
 const ctx = canvas.getContext("2d");
 
+// Create UI containers
+const labelsContainer = document.createElement("div");
+labelsContainer.style.position = "absolute";
+labelsContainer.style.top = "0";
+labelsContainer.style.left = "0";
+labelsContainer.style.width = "100%";
+labelsContainer.style.height = "100%";
+labelsContainer.style.pointerEvents = "none";
+document.getElementById("canvas-container").appendChild(labelsContainer);
+
+// Create distance indicator elements
+const distanceLine = document.createElement("canvas");
+distanceLine.style.position = "absolute";
+distanceLine.style.top = "0";
+distanceLine.style.left = "0";
+distanceLine.style.width = "100%";
+distanceLine.style.height = "100%";
+distanceLine.style.pointerEvents = "none";
+document
+  .getElementById("canvas-container")
+  .insertBefore(distanceLine, labelsContainer);
+const distanceCtx = distanceLine.getContext("2d");
+
+const distanceInfo = document.createElement("div");
+distanceInfo.className = "distance-info";
+distanceInfo.style.display = "none";
+labelsContainer.appendChild(distanceInfo);
+
 // Set canvas dimensions
 function resizeCanvas() {
   canvas.width = canvas.parentElement.clientWidth;
   canvas.height = canvas.parentElement.clientHeight;
+  distanceLine.width = canvas.width;
+  distanceLine.height = canvas.height;
 }
 
 window.addEventListener("resize", resizeCanvas);
@@ -197,6 +227,14 @@ function calculatePlanetPosition(planet, date) {
   return polarToCartesian(planet.orbitRadius, angle);
 }
 
+// Calculate point on circle edge given center and radius
+function getPointOnCircleEdge(centerX, centerY, radius, angle) {
+  return {
+    x: centerX + radius * Math.cos(angle),
+    y: centerY + radius * Math.sin(angle),
+  };
+}
+
 // Draw a planet
 function drawPlanet(planet, date) {
   const position = calculatePlanetPosition(planet, date);
@@ -205,6 +243,16 @@ function drawPlanet(planet, date) {
   const drawX = position.x * zoom + cameraX;
   const drawY = position.y * zoom + cameraY;
   const drawRadius = planet.radius * zoom;
+
+  // Update planet label position
+  const label = document.getElementById(`label-${planet.name.toLowerCase()}`);
+  if (label) {
+    label.style.left = `${drawX}px`;
+    label.style.top = `${drawY - drawRadius - 20}px`;
+    label.className = `planet-label${
+      selectedPlanet && planet.name === selectedPlanet.name ? " selected" : ""
+    }`;
+  }
 
   // Draw orbit path (except for the Sun)
   if (planet.name !== "Sun") {
@@ -309,6 +357,59 @@ function drawPlanet(planet, date) {
     ctx.stroke();
   }
 
+  // Draw distance line if this is the selected planet
+  if (
+    selectedPlanet &&
+    planet.name === selectedPlanet.name &&
+    planet.name !== "Sun"
+  ) {
+    const sunPos = calculatePlanetPosition(planets[0], date);
+    const sunX = sunPos.x * zoom + cameraX;
+    const sunY = sunPos.y * zoom + cameraY;
+    const sunRadius = planets[0].radius * zoom;
+
+    // Calculate angle between sun and planet
+    const angle = Math.atan2(drawY - sunY, drawX - sunX);
+
+    // Get points on the edges of both bodies
+    const planetEdgePoint = getPointOnCircleEdge(
+      drawX,
+      drawY,
+      drawRadius,
+      angle + Math.PI
+    );
+    const sunEdgePoint = getPointOnCircleEdge(sunX, sunY, sunRadius, angle);
+
+    // Clear previous line
+    distanceCtx.clearRect(0, 0, distanceLine.width, distanceLine.height);
+
+    // Draw dotted line
+    distanceCtx.beginPath();
+    distanceCtx.setLineDash([5, 5]);
+    distanceCtx.moveTo(sunEdgePoint.x, sunEdgePoint.y);
+    distanceCtx.lineTo(planetEdgePoint.x, planetEdgePoint.y);
+    distanceCtx.strokeStyle = "rgba(79, 195, 247, 0.6)";
+    distanceCtx.lineWidth = 2;
+    distanceCtx.stroke();
+    distanceCtx.setLineDash([]);
+
+    // Calculate and display distance
+    const distance = Math.sqrt(
+      Math.pow(position.x - sunPos.x, 2) + Math.pow(position.y - sunPos.y, 2)
+    );
+
+    // Position distance info at middle of line
+    const midX = (sunEdgePoint.x + planetEdgePoint.x) / 2;
+    const midY = (sunEdgePoint.y + planetEdgePoint.y) / 2;
+
+    distanceInfo.style.display = "block";
+    distanceInfo.style.left = `${midX}px`;
+    distanceInfo.style.top = `${midY}px`;
+    distanceInfo.textContent = `Distance: ${(
+      distance / EARTH_ORBIT_RADIUS
+    ).toFixed(2)} AU`;
+  }
+
   // Store drawn position and radius for click detection
   planet.drawnX = drawX;
   planet.drawnY = drawY;
@@ -345,6 +446,7 @@ function drawStars() {
 function draw() {
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  distanceCtx.clearRect(0, 0, distanceLine.width, distanceLine.height);
 
   // Calculate center point of canvas
   const centerX = canvas.width / 2;
@@ -372,6 +474,11 @@ function draw() {
 
   // Update date display
   updateDateDisplay();
+
+  // Hide distance info if no planet is selected
+  if (!selectedPlanet) {
+    distanceInfo.style.display = "none";
+  }
 
   // Update animation
   if (isPlaying) {
@@ -409,6 +516,15 @@ function init() {
 
   // Initialize stars
   initStars();
+
+  // Create planet labels
+  planets.forEach((planet) => {
+    const label = document.createElement("div");
+    label.className = "planet-label";
+    label.textContent = planet.name;
+    label.id = `label-${planet.name.toLowerCase()}`;
+    labelsContainer.appendChild(label);
+  });
 
   // Center the view
   cameraX = canvas.width / 2;
@@ -464,6 +580,8 @@ function init() {
     followingPlanet = null;
     selectedPlanet = null;
     selectedPlanetInfo.textContent = "Select a planet to see details";
+    distanceInfo.style.display = "none";
+    distanceCtx.clearRect(0, 0, distanceLine.width, distanceLine.height);
 
     if (!isPlaying) {
       draw();
@@ -481,10 +599,15 @@ function init() {
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
 
+    // Clear previous selection first
+    selectedPlanet = null;
+    distanceInfo.style.display = "none";
+    distanceCtx.clearRect(0, 0, distanceLine.width, distanceLine.height);
+
     // Check if a planet was clicked
     for (let i = planets.length - 1; i >= 0; i--) {
       const planet = planets[i];
-      if (!planet.drawnX) continue; // Skip if not yet drawn
+      if (!planet.drawnX) continue;
 
       const distance = Math.sqrt(
         Math.pow(clickX - planet.drawnX, 2) +
@@ -504,6 +627,12 @@ function init() {
         }
         return;
       }
+    }
+
+    // If no planet was clicked, update the info panel
+    selectedPlanetInfo.textContent = "Select a planet to see details";
+    if (!isPlaying) {
+      draw();
     }
   });
 
@@ -564,5 +693,5 @@ function init() {
   requestAnimationFrame(draw);
 }
 
-// Initialize the application when the DOM is loaded
+// Remove the duplicate initialization code from the end of the file
 document.addEventListener("DOMContentLoaded", init);
