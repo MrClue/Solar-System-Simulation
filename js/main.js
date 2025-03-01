@@ -6,7 +6,7 @@ let sun,
   labels = {};
 let raycaster, mouse;
 let showLabels = true;
-let animationSpeed = 1.0;
+let animationSpeed = 1; // Integer value for animation speed (days/sec)
 let isPlaying = true;
 let selectedPlanet = null; // Track the currently selected planet
 let followingPlanet = false; // Whether camera is following a planet
@@ -142,6 +142,30 @@ function init() {
   initEventListeners();
   createStarfield();
   initUIControls();
+
+  // Initialize speed display and set initial animation speed
+  const speedSlider = document.getElementById("speed-slider");
+  if (speedSlider) {
+    // Set initial slider value
+    speedSlider.value = 0;
+
+    // Calculate initial animation speed using the logarithmic scale
+    const logBase = 1.06;
+    animationSpeed = Math.max(
+      1,
+      Math.round(Math.pow(logBase, parseInt(speedSlider.value)))
+    );
+
+    // Update the display
+    updateSpeedDisplay();
+
+    // Set the initial slider fill
+    const percent =
+      ((parseInt(speedSlider.value) - speedSlider.min) /
+        (speedSlider.max - speedSlider.min)) *
+      100;
+    speedSlider.style.setProperty("--slider-fill", `${percent}%`);
+  }
 
   // Log planet positions for debugging
   logPlanetPositions();
@@ -597,7 +621,8 @@ function animate() {
 }
 
 function updatePlanetPositions() {
-  // Use a fixed time increment to prevent jittering
+  // Use a fixed time increment based on integer animation speed
+  // Scale down by 100 to prevent too fast animation with higher values
   const timeIncrement = 0.01 * animationSpeed;
   window.currentSimTime = (window.currentSimTime || 0) + timeIncrement;
   const time = window.currentSimTime;
@@ -672,12 +697,14 @@ function initUIControls() {
   // Speed slider
   const speedSlider = document.getElementById("speed-slider");
   speedSlider.addEventListener("input", function () {
-    const value = parseFloat(this.value);
-    animationSpeed = 1 + (365.25 - 1) * (value / 100);
+    // Directly use the slider value (1-365) for animation speed
+    const sliderValue = parseInt(this.value);
+    animationSpeed = sliderValue;
+
     updateSpeedDisplay();
 
     // Update slider fill
-    const percent = ((value - this.min) / (this.max - this.min)) * 100;
+    const percent = ((sliderValue - this.min) / (this.max - this.min)) * 100;
     this.style.setProperty("--slider-fill", `${percent}%`);
   });
 
@@ -709,13 +736,15 @@ function initUIControls() {
 
 function updateSpeedDisplay() {
   const speedValue = document.getElementById("speed-value");
-  if (animationSpeed >= 365) {
-    speedValue.textContent = `${(animationSpeed / 365.25).toFixed(
-      1
-    )} years/sec`;
-  } else {
-    speedValue.textContent = `${animationSpeed.toFixed(1)} days/sec`;
+  const speedNumber = document.getElementById("speed-number");
+
+  // Update the speed number display
+  if (speedNumber) {
+    speedNumber.textContent = animationSpeed;
   }
+
+  // Update the days/sec text
+  speedValue.textContent = "days/sec";
 }
 
 function resetView() {
