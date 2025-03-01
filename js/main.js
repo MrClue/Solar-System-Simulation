@@ -516,9 +516,9 @@ function createStarfield() {
   const farStarGeometry = new THREE.BufferGeometry();
   const farStarMaterial = new THREE.PointsMaterial({
     color: 0xffffff,
-    size: 2.0,
+    size: 1.0, // Reduced from 2.0
     transparent: true,
-    opacity: 0.7,
+    opacity: 0.4, // Reduced from 0.7
     sizeAttenuation: false, // No size attenuation for distant stars
   });
 
@@ -546,9 +546,9 @@ function createStarfield() {
   const midStarGeometry = new THREE.BufferGeometry();
   const midStarMaterial = new THREE.PointsMaterial({
     color: 0xffffff,
-    size: 4.0,
+    size: 2.5, // Reduced from 4.0
     transparent: true,
-    opacity: 0.8,
+    opacity: 0.5, // Reduced from 0.8
     sizeAttenuation: true,
   });
 
@@ -576,9 +576,9 @@ function createStarfield() {
   const nearStarGeometry = new THREE.BufferGeometry();
   const nearStarMaterial = new THREE.PointsMaterial({
     color: 0xffffff,
-    size: 6.0,
+    size: 3.5, // Reduced from 6.0
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.6, // Reduced from 0.9
     sizeAttenuation: true,
   });
 
@@ -598,6 +598,13 @@ function createStarfield() {
   );
   const nearStars = new THREE.Points(nearStarGeometry, nearStarMaterial);
   scene.add(nearStars);
+
+  // Store references to star materials for dynamic opacity adjustment
+  window.starMaterials = {
+    far: farStarMaterial,
+    mid: midStarMaterial,
+    near: nearStarMaterial,
+  };
 }
 
 // ==================== ANIMATION ====================
@@ -614,6 +621,9 @@ function animate() {
 
   // Update Uranus label position
   updateUranusLabel();
+
+  // Adjust star opacity based on camera distance
+  adjustStarOpacity();
 
   controls.update();
   renderer.render(scene, camera);
@@ -1358,6 +1368,70 @@ function toggleInfoPanel() {
       </svg>
     `;
   }
+}
+
+// Function to adjust star appearance based on camera distance
+function adjustStarOpacity() {
+  if (!window.starMaterials) return;
+
+  // Get camera distance from origin (approximate center of solar system)
+  const cameraDistance = camera.position.length();
+
+  // Define distance thresholds for different zoom levels
+  const closeDistance = 500; // When very close to planets
+  const midDistance = 10000; // Normal viewing distance
+  const farDistance = MAX_ZOOM_DISTANCE * 0.5; // Far zoom out
+
+  // Calculate opacity factors based on distance ranges
+  let farStarOpacity, midStarOpacity, nearStarOpacity;
+  let farStarSize, midStarSize, nearStarSize;
+
+  if (cameraDistance < closeDistance) {
+    // When very close to planets, stars should be barely visible
+    farStarOpacity = 0.05;
+    midStarOpacity = 0.1;
+    nearStarOpacity = 0.15;
+
+    // Default sizes for close viewing
+    farStarSize = 1.0;
+    midStarSize = 2.5;
+    nearStarSize = 3.5;
+  } else if (cameraDistance < midDistance) {
+    // Normal viewing distance - linear interpolation between close and mid
+    const t = (cameraDistance - closeDistance) / (midDistance - closeDistance);
+    farStarOpacity = 0.05 + t * 0.35; // 0.05 to 0.4
+    midStarOpacity = 0.1 + t * 0.4; // 0.1 to 0.5
+    nearStarOpacity = 0.15 + t * 0.45; // 0.15 to 0.6
+
+    // Default sizes for normal viewing
+    farStarSize = 1.0;
+    midStarSize = 2.5;
+    nearStarSize = 3.5;
+  } else {
+    // Far zoom out - stars should fade and shrink as we zoom out further
+    const t = Math.min(
+      (cameraDistance - midDistance) / (farDistance - midDistance),
+      1
+    );
+    farStarOpacity = Math.max(0.4 - t * 0.35, 0.05);
+    midStarOpacity = Math.max(0.5 - t * 0.4, 0.1);
+    nearStarOpacity = Math.max(0.6 - t * 0.45, 0.15);
+
+    // Reduce star sizes when zoomed out
+    farStarSize = Math.max(1.0 - t * 0.5, 0.5); // 1.0 to 0.5
+    midStarSize = Math.max(2.5 - t * 1.5, 1.0); // 2.5 to 1.0
+    nearStarSize = Math.max(3.5 - t * 2.0, 1.5); // 3.5 to 1.5
+  }
+
+  // Apply calculated opacities
+  window.starMaterials.far.opacity = farStarOpacity;
+  window.starMaterials.mid.opacity = midStarOpacity;
+  window.starMaterials.near.opacity = nearStarOpacity;
+
+  // Apply calculated sizes
+  window.starMaterials.far.size = farStarSize;
+  window.starMaterials.mid.size = midStarSize;
+  window.starMaterials.near.size = nearStarSize;
 }
 
 // Initialize when DOM is loaded
