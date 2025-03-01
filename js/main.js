@@ -841,7 +841,7 @@ function animate() {
     updatePlanetPositions();
   }
 
-  // Update camera position if following a planet
+  // Update camera position if following a planet or moon
   if (followingPlanet && selectedPlanet) {
     updateCameraFollow();
   }
@@ -916,14 +916,38 @@ function updatePlanetPositions() {
   sun.rotation.y += calculateRotationIncrement(PLANET_DATA.Sun.rotationPeriod);
 }
 
-// Function to update camera position when following a planet
+// Function to update camera position when following a planet or moon
 function updateCameraFollow() {
-  const planet = selectedPlanet === "Sun" ? sun : planets[selectedPlanet];
-  if (!planet) return;
+  let targetObject = null;
 
-  const position = planet.position.clone();
+  // Determine which object to follow
+  if (selectedPlanet === "Sun") {
+    targetObject = sun;
+  } else if (planets[selectedPlanet]) {
+    // It's a planet
+    targetObject = planets[selectedPlanet];
+  } else {
+    // It might be a moon - search through all planets' moons
+    for (const [planetName, planet] of Object.entries(planets)) {
+      if (planet.moons && planet.moons[selectedPlanet]) {
+        // Found the moon - get its world position
+        const moonObj = planet.moons[selectedPlanet];
+        moonObj.moon.updateMatrixWorld(true);
 
-  // Update the controls target to follow the planet
+        // We need to work with the moon's actual position in world space
+        targetObject = moonObj.moon;
+        break;
+      }
+    }
+  }
+
+  if (!targetObject) return; // Safety check
+
+  // For moons, we need to get their world position since they're in a nested hierarchy
+  const position = new THREE.Vector3();
+  targetObject.getWorldPosition(position);
+
+  // Update the controls target to follow the object
   controls.target.lerp(position, 0.1);
 
   // Calculate the current offset vector from target to camera
@@ -1211,16 +1235,16 @@ function focusOnPlanet(object) {
   // Reset all orbit lines to their default appearance
   resetOrbitHighlights();
 
-  // Get the position of the object
-  let position;
+  // Get the data for the selected object
   let data;
+  let targetObject;
 
   if (objectType === "star") {
-    position = sun.position.clone();
+    targetObject = sun;
     data = PLANET_DATA.Sun;
     selectedPlanet = "Sun";
   } else if (objectType === "planet") {
-    position = planets[objectName].position.clone();
+    targetObject = planets[objectName];
     data = PLANET_DATA[objectName];
     selectedPlanet = objectName;
 
@@ -1229,10 +1253,13 @@ function focusOnPlanet(object) {
   } else if (objectType === "moon") {
     // For moons, we need to get the world position
     const moonObj = planets[parentPlanet].moons[objectName];
-    moonObj.moon.updateMatrixWorld();
-    position = new THREE.Vector3();
-    position.setFromMatrixPosition(moonObj.moon.matrixWorld);
-    data = PLANET_DATA[parentPlanet].moons.find((m) => m.name === objectName);
+    targetObject = moonObj.moon;
+
+    // Find moon data in the parent planet's data
+    const parentData = PLANET_DATA[parentPlanet];
+    data = parentData.moons.find((m) => m.name === objectName);
+
+    // Set the selected planet to the moon's name for tracking
     selectedPlanet = objectName;
 
     // Highlight the parent planet's orbit when a moon is selected
@@ -1242,8 +1269,20 @@ function focusOnPlanet(object) {
   // Set following mode
   followingPlanet = true;
 
-  // Calculate appropriate distance based on the object's size
-  const distance = objectType === "star" ? data.radius * 20 : data.radius * 15;
+  // Get the object's world position
+  const position = new THREE.Vector3();
+  targetObject.getWorldPosition(position);
+
+  // Calculate appropriate distance based on the object's size and type
+  let distance;
+  if (objectType === "star") {
+    distance = data.radius * 20;
+  } else if (objectType === "planet") {
+    distance = data.radius * 15;
+  } else if (objectType === "moon") {
+    // For moons, use a smaller multiplier since they're usually smaller
+    distance = data.radius * 20;
+  }
 
   // Set the controls target to the object
   gsap.to(controls.target, {
