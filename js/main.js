@@ -294,36 +294,240 @@ function createCelestialBody(options) {
 function createSun() {
   const sunData = PLANET_DATA.Sun;
 
-  sun = createCelestialBody({
-    radius: sunData.radius,
-    segments: 64,
-    color: sunData.color,
-    emissive: sunData.emissive,
-    emissiveIntensity: 1.0, // Increased for better visibility
+  // Create the base sun mesh
+  const sunGeometry = new THREE.SphereGeometry(sunData.radius, 64, 64);
+
+  // Create a shader material for more realistic sun surface
+  const sunMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 },
+      color1: { value: new THREE.Color(0xffff33) }, // Pure bright yellow
+      color2: { value: new THREE.Color(0xff7700) }, // More vivid orange
+      color3: { value: new THREE.Color(0xffcc00) }, // Gold
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+
+      void main() {
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        vPosition = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float time;
+      uniform vec3 color1;
+      uniform vec3 color2;
+      uniform vec3 color3;
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+
+      // Simplex noise functions from https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+      vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+
+      float snoise(vec2 v) {
+        const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+                 -0.577350269189626, 0.024390243902439);
+        vec2 i  = floor(v + dot(v, C.yy));
+        vec2 x0 = v -   i + dot(i, C.xx);
+        vec2 i1;
+        i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz;
+        x12.xy -= i1;
+        i = mod(i, 289.0);
+        vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+          + i.x + vec3(0.0, i1.x, 1.0 ));
+        vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
+          dot(x12.zw,x12.zw)), 0.0);
+        m = m*m;
+        m = m*m;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5;
+        vec3 ox = floor(x + 0.5);
+        vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+        vec3 g;
+        g.x  = a0.x  * x0.x  + h.x  * x0.y;
+        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
+      }
+
+      void main() {
+        // Create dynamic noise pattern for sun surface with more variation
+        float n1 = snoise(vUv * 10.0 + time * 0.1);
+        float n2 = snoise(vUv * 20.0 - time * 0.05);
+        float n3 = snoise(vUv * 5.0 + time * 0.15);
+        float n4 = snoise(vUv * 50.0 + time * 0.2); // Added higher frequency detail
+        
+        // Combine noise for turbulent effect with more small-scale details
+        float noise = n1 * 0.45 + n2 * 0.25 + n3 * 0.2 + n4 * 0.1;
+        
+        // Generate base color from noise only (no normal-based darkening)
+        // Enhanced color mix for more vibrant appearance
+        vec3 baseColor = mix(color2, color1, noise * 0.6 + 0.4);
+        
+        // Add bright spots/solar flares using only noise (no normal calculations)
+        float spotNoise1 = snoise(vUv * 15.0 + time * 0.2);
+        float spotNoise2 = snoise(vUv * 25.0 - time * 0.15);
+        float brightSpots = max(0.0, (spotNoise1 * spotNoise2) * 1.8); // Increased intensity
+        
+        // Add more solar variation with purely noise-based patterns
+        float flarePattern = snoise(vUv * 8.0 + time * 0.3) * snoise(vUv * 4.0 - time * 0.2);
+        float flares = max(0.0, flarePattern * flarePattern * 1.0); // Increased intensity
+        
+        // Create a more dynamic sun surface with multiple layers of detail
+        float smallDetails = snoise(vUv * 30.0 + time * 0.25) * 0.15; // Increased detail
+        float mediumDetails = snoise(vUv * 12.0 - time * 0.15) * 0.2; // Increased detail
+        
+        // Combine all effects without any normal-based darkening
+        vec3 finalColor = baseColor;
+        finalColor += vec3(1.0, 0.9, 0.5) * brightSpots * brightSpots * 0.5; // Brighter spots
+        finalColor += vec3(1.0, 0.7, 0.3) * flares * 0.4; // Brighter flares
+        finalColor += vec3(1.0, 0.9, 0.5) * smallDetails; // Brighter details
+        finalColor += vec3(1.0, 0.7, 0.3) * mediumDetails; // Brighter medium details
+        
+        // Ensure the sun is uniformly bright with a minimum brightness floor
+        finalColor = max(finalColor, vec3(1.0, 0.7, 0.2)); // Higher yellow component
+        
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `,
+    transparent: true,
+    side: THREE.FrontSide,
+    emissive: true, // Make the sun self-illuminating
   });
 
-  // Create a simpler sun glow that won't cause animation issues
-  createSimpleSunGlow();
+  sun = new THREE.Mesh(sunGeometry, sunMaterial);
+  scene.add(sun);
+
+  // Create enhanced sun glow effects
+  createEnhancedSunGlow(sunData.radius, sunMaterial);
 }
 
-function createSimpleSunGlow() {
-  // Create a simple glow using a sphere with additive blending
-  const glowGeometry = new THREE.SphereGeometry(
-    PLANET_DATA.Sun.radius * 1.5, // Increased glow size relative to sun
-    32,
-    32
-  );
+function createEnhancedSunGlow(sunRadius, sunMaterial) {
+  // Create a more sophisticated glow with multiple layers
 
-  const glowMaterial = new THREE.MeshBasicMaterial({
-    color: 0xfdb813,
-    transparent: true,
-    opacity: 0.4,
-    blending: THREE.AdditiveBlending,
+  // Inner glow - close to the sun surface
+  const innerGlowGeometry = new THREE.SphereGeometry(sunRadius * 1.1, 32, 32);
+  const innerGlowMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      viewVector: { value: new THREE.Vector3(0, 0, 1) },
+      sunColor: { value: new THREE.Color(0xffcc33) },
+    },
+    vertexShader: `
+      uniform vec3 viewVector;
+      varying float intensity;
+      void main() {
+        vec3 vNormal = normalize(normalMatrix * normal);
+        vec3 vNormel = normalize(normalMatrix * viewVector);
+        intensity = pow(0.6 - dot(vNormal, vNormel), 1.5);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 sunColor;
+      varying float intensity;
+      void main() {
+        float adjustedIntensity = intensity * 0.5 + 0.1;
+        gl_FragColor = vec4(sunColor, adjustedIntensity);
+      }
+    `,
     side: THREE.BackSide,
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
   });
 
-  const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-  sun.add(glow);
+  innerGlow = new THREE.Mesh(innerGlowGeometry, innerGlowMaterial);
+  scene.add(innerGlow);
+
+  // Outer glow - larger area around the sun
+  const outerGlowGeometry = new THREE.SphereGeometry(sunRadius * 1.5, 32, 32);
+  const outerGlowMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      viewVector: { value: new THREE.Vector3(0, 0, 1) },
+      sunColor: { value: new THREE.Color(0xff8833) },
+    },
+    vertexShader: `
+      uniform vec3 viewVector;
+      varying float intensity;
+      void main() {
+        vec3 vNormal = normalize(normalMatrix * normal);
+        vec3 vNormel = normalize(normalMatrix * viewVector);
+        intensity = pow(0.6 - dot(vNormal, vNormel), 1.8);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 sunColor;
+      varying float intensity;
+      void main() {
+        float adjustedIntensity = intensity * 0.4 + 0.05;
+        gl_FragColor = vec4(sunColor, adjustedIntensity);
+      }
+    `,
+    side: THREE.BackSide,
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+  });
+
+  outerGlow = new THREE.Mesh(outerGlowGeometry, outerGlowMaterial);
+  scene.add(outerGlow);
+
+  // Corona - very large and subtle outermost layer
+  const coronaGeometry = new THREE.SphereGeometry(sunRadius * 2.5, 32, 32);
+  const coronaMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      viewVector: { value: new THREE.Vector3(0, 0, 1) },
+      sunColor: { value: new THREE.Color(0xff5500) },
+    },
+    vertexShader: `
+      uniform vec3 viewVector;
+      varying float intensity;
+      void main() {
+        vec3 vNormal = normalize(normalMatrix * normal);
+        vec3 vNormel = normalize(normalMatrix * viewVector);
+        intensity = pow(0.7 - dot(vNormal, vNormel), 2.0);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 sunColor;
+      varying float intensity;
+      void main() {
+        float adjustedIntensity = intensity * 0.15 + 0.03;
+        gl_FragColor = vec4(sunColor, adjustedIntensity);
+      }
+    `,
+    side: THREE.BackSide,
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+  });
+
+  corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
+  scene.add(corona);
+
+  // Function to update the glow based on camera position
+  updateGlow = function () {
+    // Update uniforms for all glow layers
+    const viewVector = new THREE.Vector3()
+      .subVectors(camera.position, sun.position)
+      .normalize();
+    innerGlowMaterial.uniforms.viewVector.value = viewVector;
+    outerGlowMaterial.uniforms.viewVector.value = viewVector;
+    coronaMaterial.uniforms.viewVector.value = viewVector;
+
+    // Update positions to follow the sun
+    innerGlow.position.copy(sun.position);
+    outerGlow.position.copy(sun.position);
+    corona.position.copy(sun.position);
+  };
 }
 
 function createPlanets() {
@@ -519,17 +723,17 @@ function updateUranusLabel() {
 }
 
 function setupLighting() {
-  // Add ambient light for overall scene brightness
-  const ambientLight = new THREE.AmbientLight(0x777777, 1.0);
+  // Add ambient light for better overall visibility
+  const ambientLight = new THREE.AmbientLight(0x444444, 0.6); // Reduced intensity
   scene.add(ambientLight);
 
-  // Add directional light to simulate sunlight
-  const sunLight = new THREE.PointLight(0xffffff, 2.0, 0, 1);
+  // Add point light at the sun's position
+  sunLight = new THREE.PointLight(0xffffcc, 1.5, 0, 1); // Warmer color, adjusted intensity
   sunLight.position.set(0, 0, 0);
   scene.add(sunLight);
 
-  // Add a hemisphere light for better planet visibility
-  const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5);
+  // Add hemisphere light for better planet visibility
+  const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.3); // Reduced intensity
   scene.add(hemisphereLight);
 }
 
@@ -622,6 +826,17 @@ function createStarLayer(options) {
 // ==================== ANIMATION ====================
 function animate() {
   requestAnimationFrame(animate);
+
+  // Update the sun shader time uniform for animation
+  if (sun && sun.userData.material && sun.userData.material.uniforms) {
+    sun.userData.material.uniforms.time.value += 0.01;
+
+    // Update sun glow effects to follow camera position
+    if (sun.userData.updateGlow) {
+      sun.userData.updateGlow();
+    }
+  }
+
   if (isPlaying) {
     updatePlanetPositions();
   }
