@@ -2,6 +2,9 @@
 
 An interactive web-based simulation of our solar system that allows users to explore and learn about the planets in our solar system. The simulation includes accurate orbital periods, planet sizes (to scale), and interactive controls for time manipulation.
 
+![image](https://github.com/user-attachments/assets/327778f7-3176-45b1-9f47-05567e85ee6b)
+
+
 ## Features
 
 - Real-time solar system simulation with accurate orbital periods
