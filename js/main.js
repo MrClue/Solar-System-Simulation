@@ -252,15 +252,55 @@ function createScene() {
   setupLighting();
 }
 
+// Helper function to create a celestial body (planet, moon, sun)
+function createCelestialBody(options) {
+  const geometry = new THREE.SphereGeometry(
+    options.radius,
+    options.segments || 32,
+    options.segments || 32
+  );
+
+  const material = new THREE.MeshPhongMaterial({
+    color: options.color,
+    emissive: options.emissive || options.color,
+    emissiveIntensity: options.emissiveIntensity || 0.2,
+    shininess: options.shininess || 30,
+  });
+
+  const body = new THREE.Mesh(geometry, material);
+
+  // Set position if provided
+  if (options.position) {
+    body.position.copy(options.position);
+  } else if (options.x !== undefined || options.z !== undefined) {
+    body.position.set(options.x || 0, options.y || 0, options.z || 0);
+  }
+
+  // Set rotation if provided
+  if (options.rotation) {
+    body.rotation.copy(options.rotation);
+  }
+
+  // Add to parent or scene
+  if (options.parent) {
+    options.parent.add(body);
+  } else if (options.addToScene !== false) {
+    scene.add(body);
+  }
+
+  return body;
+}
+
 function createSun() {
-  const sunGeometry = new THREE.SphereGeometry(PLANET_DATA.Sun.radius, 64, 64);
-  const sunMaterial = new THREE.MeshPhongMaterial({
-    color: PLANET_DATA.Sun.color,
-    emissive: PLANET_DATA.Sun.emissive,
+  const sunData = PLANET_DATA.Sun;
+
+  sun = createCelestialBody({
+    radius: sunData.radius,
+    segments: 64,
+    color: sunData.color,
+    emissive: sunData.emissive,
     emissiveIntensity: 1.0, // Increased for better visibility
   });
-  sun = new THREE.Mesh(sunGeometry, sunMaterial);
-  scene.add(sun);
 
   // Create a simpler sun glow that won't cause animation issues
   createSimpleSunGlow();
@@ -291,45 +331,28 @@ function createPlanets() {
     if (name === "Sun") return;
 
     // Scale planets for visibility but ensure they're smaller than the sun
-    // Use a scaling factor based on planet type
-    let scaleFactor;
-    if (
-      name === "Jupiter" ||
-      name === "Saturn" ||
-      name === "Uranus" ||
-      name === "Neptune"
-    ) {
-      // Gas giants get a smaller scale factor
-      scaleFactor = 1.5;
-    } else {
-      // Rocky planets get a larger scale factor for visibility
-      scaleFactor = 2.0;
-    }
-
+    const scaleFactor = getPlanetScaleFactor(name);
     const scaledRadius = data.radius * scaleFactor;
-    const geometry = new THREE.SphereGeometry(scaledRadius, 32, 32);
-    const material = new THREE.MeshPhongMaterial({
-      color: data.color,
-      emissive: data.color,
-      emissiveIntensity: 0.2, // Reduced for more realistic appearance
-      shininess: 30,
-    });
-    const planet = new THREE.Mesh(geometry, material);
 
     // Position planet - use fixed angles for initial positions to ensure they're spread out
     const planetIndex = Object.keys(PLANET_DATA).indexOf(name) - 1; // -1 to skip Sun
     const angle =
       (planetIndex / (Object.keys(PLANET_DATA).length - 1)) * Math.PI * 2;
 
-    // Ensure minimum orbit distance for visibility and to prevent orbiting inside sun
-    const displayRadius = Math.max(data.orbitRadius, MIN_ORBIT_DISPLAY);
+    // Calculate orbit radius
+    const adjustedRadius = calculatePlanetOrbitRadius(name, data.orbitRadius);
 
-    // Add a small random offset to each planet's position to prevent overlap
-    const randomOffset = planetIndex * 50 + 50;
-    const adjustedRadius = displayRadius + randomOffset;
+    // Calculate position
+    const position = calculatePlanetPosition(angle, adjustedRadius);
 
-    planet.position.x = Math.cos(angle) * adjustedRadius;
-    planet.position.z = Math.sin(angle) * adjustedRadius;
+    // Create the planet
+    const planet = createCelestialBody({
+      radius: scaledRadius,
+      color: data.color,
+      emissiveIntensity: 0.2,
+      x: position.x,
+      z: position.z,
+    });
 
     // Add rings for Saturn
     if (name === "Saturn") {
@@ -342,7 +365,6 @@ function createPlanets() {
       planet.rotation.z = THREE.MathUtils.degToRad(97.77);
     }
 
-    scene.add(planet);
     planets[name] = planet;
 
     console.log(`Planet ${name} created at position:`, planet.position);
@@ -389,19 +411,12 @@ function createOrbits() {
   Object.entries(PLANET_DATA).forEach(([name, data]) => {
     if (name === "Sun") return;
 
-    // Get the planet index for consistent positioning
-    const planetIndex = Object.keys(PLANET_DATA).indexOf(name) - 1; // -1 to skip Sun
-    const randomOffset = planetIndex * 50 + 50;
+    // Calculate orbit radius
+    const adjustedRadius = calculatePlanetOrbitRadius(name, data.orbitRadius);
 
-    // Ensure minimum orbit size for visibility
-    const displayRadius = Math.max(data.orbitRadius, MIN_ORBIT_DISPLAY);
-    const adjustedRadius = displayRadius + randomOffset;
+    // Create orbit geometry using the helper function
+    const orbitGeometry = createOrbitGeometry(adjustedRadius, 20, false);
 
-    const orbitGeometry = new THREE.RingGeometry(
-      adjustedRadius - 20, // Wider orbit line (increased from 10 to 20)
-      adjustedRadius + 20, // Wider orbit line (increased from 10 to 20)
-      128
-    );
     const orbitMaterial = new THREE.MeshBasicMaterial({
       color: data.color, // Use the planet's color for its orbit
       side: THREE.DoubleSide,
@@ -421,47 +436,56 @@ function createOrbits() {
   });
 }
 
+// Helper function to create a label for a celestial body
+function createLabel(name, parent, height, options = {}) {
+  const label = document.createElement("div");
+  label.className = "label";
+  label.textContent = name;
+  label.style.display = showLabels ? "block" : "none";
+
+  const labelObject = new THREE.CSS2DObject(label);
+  labelObject.position.set(0, height, 0);
+
+  if (parent) {
+    parent.add(labelObject);
+  }
+
+  // Store special container for Uranus or other special cases
+  if (options.useContainer) {
+    const labelContainer = new THREE.Object3D();
+    scene.add(labelContainer);
+
+    // Store reference data
+    labelContainer.userData = { planetName: name };
+
+    // Add label to container
+    labelContainer.add(labelObject);
+
+    // Return both the label and container
+    return {
+      object: labelObject,
+      container: labelContainer,
+    };
+  }
+
+  return labelObject;
+}
+
 function createLabels() {
   Object.entries(PLANET_DATA).forEach(([name, data]) => {
-    const label = document.createElement("div");
-    label.className = "label";
-    label.textContent = name;
-    label.style.display = showLabels ? "block" : "none";
-
-    const labelObject = new THREE.CSS2DObject(label);
-
     // Position labels above objects with appropriate scaling
     const labelHeight = name === "Sun" ? data.radius * 2 : data.radius * 4;
 
     // For Uranus, create a special handling due to its axial tilt
     if (name === "Uranus") {
-      // Create a non-rotating container for the label that will follow the planet
-      const labelContainer = new THREE.Object3D();
-      scene.add(labelContainer);
-
-      // Store the planet reference for updating the container position
-      labelContainer.userData = { planetName: name };
-
-      // Position the label above the planet
-      labelObject.position.set(0, labelHeight, 0);
-      labelContainer.add(labelObject);
-
-      // Store the label container for updates
-      labels[name] = {
-        object: labelObject,
-        container: labelContainer,
-      };
+      // Create a label with a container for Uranus
+      labels[name] = createLabel(name, null, labelHeight, {
+        useContainer: true,
+      });
     } else {
       // Standard label positioning for other planets
-      labelObject.position.set(0, labelHeight, 0);
-
-      if (name === "Sun") {
-        sun.add(labelObject);
-      } else {
-        planets[name].add(labelObject);
-      }
-
-      labels[name] = labelObject;
+      const parent = name === "Sun" ? sun : planets[name];
+      labels[name] = createLabel(name, parent, labelHeight);
     }
   });
 
@@ -512,99 +536,87 @@ function setupLighting() {
 function createStarfield() {
   // Create a much larger starfield with more stars and better distribution
 
-  // First layer - distant stars (small and numerous)
-  const farStarGeometry = new THREE.BufferGeometry();
-  const farStarMaterial = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 1.0, // Reduced from 2.0
-    transparent: true,
-    opacity: 0.4, // Reduced from 0.7
-    sizeAttenuation: false, // No size attenuation for distant stars
-  });
-
-  const farStarVertices = [];
-  for (let i = 0; i < 100000; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    const radius = STARFIELD_SIZE * 0.8 + Math.random() * STARFIELD_SIZE * 0.2;
-
-    const x = radius * Math.sin(phi) * Math.cos(theta);
-    const y = radius * Math.sin(phi) * Math.sin(theta);
-    const z = radius * Math.cos(phi);
-
-    farStarVertices.push(x, y, z);
-  }
-
-  farStarGeometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(farStarVertices, 3)
-  );
-  const farStars = new THREE.Points(farStarGeometry, farStarMaterial);
-  scene.add(farStars);
-
-  // Second layer - mid-distance stars (medium size, with attenuation)
-  const midStarGeometry = new THREE.BufferGeometry();
-  const midStarMaterial = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 2.5, // Reduced from 4.0
-    transparent: true,
-    opacity: 0.5, // Reduced from 0.8
-    sizeAttenuation: true,
-  });
-
-  const midStarVertices = [];
-  for (let i = 0; i < 50000; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    const radius = STARFIELD_SIZE * 0.4 + Math.random() * STARFIELD_SIZE * 0.3;
-
-    const x = radius * Math.sin(phi) * Math.cos(theta);
-    const y = radius * Math.sin(phi) * Math.sin(theta);
-    const z = radius * Math.cos(phi);
-
-    midStarVertices.push(x, y, z);
-  }
-
-  midStarGeometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(midStarVertices, 3)
-  );
-  const midStars = new THREE.Points(midStarGeometry, midStarMaterial);
-  scene.add(midStars);
-
-  // Third layer - nearby stars (larger, with attenuation)
-  const nearStarGeometry = new THREE.BufferGeometry();
-  const nearStarMaterial = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 3.5, // Reduced from 6.0
-    transparent: true,
-    opacity: 0.6, // Reduced from 0.9
-    sizeAttenuation: true,
-  });
-
-  const nearStarVertices = [];
-  for (let i = 0; i < 10000; i++) {
-    // More uniform distribution for nearby stars
-    const x = (Math.random() - 0.5) * STARFIELD_SIZE * 0.5;
-    const y = (Math.random() - 0.5) * STARFIELD_SIZE * 0.5;
-    const z = (Math.random() - 0.5) * STARFIELD_SIZE * 0.5;
-
-    nearStarVertices.push(x, y, z);
-  }
-
-  nearStarGeometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(nearStarVertices, 3)
-  );
-  const nearStars = new THREE.Points(nearStarGeometry, nearStarMaterial);
-  scene.add(nearStars);
-
   // Store references to star materials for dynamic opacity adjustment
   window.starMaterials = {
-    far: farStarMaterial,
-    mid: midStarMaterial,
-    near: nearStarMaterial,
+    far: createStarLayer({
+      count: 100000,
+      size: 1.0,
+      opacity: 0.4,
+      sizeAttenuation: false,
+      radiusMin: STARFIELD_SIZE * 0.8,
+      radiusMax: STARFIELD_SIZE,
+      distribution: "spherical",
+    }),
+
+    mid: createStarLayer({
+      count: 50000,
+      size: 2.5,
+      opacity: 0.5,
+      sizeAttenuation: true,
+      radiusMin: STARFIELD_SIZE * 0.4,
+      radiusMax: STARFIELD_SIZE * 0.7,
+      distribution: "spherical",
+    }),
+
+    near: createStarLayer({
+      count: 10000,
+      size: 3.5,
+      opacity: 0.6,
+      sizeAttenuation: true,
+      radiusMin: 0,
+      radiusMax: STARFIELD_SIZE * 0.5,
+      distribution: "uniform",
+    }),
   };
+}
+
+// Helper function to create a star layer
+function createStarLayer(options) {
+  const geometry = new THREE.BufferGeometry();
+  const material = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: options.size,
+    transparent: true,
+    opacity: options.opacity,
+    sizeAttenuation: options.sizeAttenuation,
+  });
+
+  const vertices = [];
+
+  if (options.distribution === "spherical") {
+    // Spherical distribution for distant and mid stars
+    for (let i = 0; i < options.count; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const radius =
+        options.radiusMin +
+        Math.random() * (options.radiusMax - options.radiusMin);
+
+      const x = radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.sin(phi) * Math.sin(theta);
+      const z = radius * Math.cos(phi);
+
+      vertices.push(x, y, z);
+    }
+  } else {
+    // Uniform distribution for nearby stars
+    for (let i = 0; i < options.count; i++) {
+      const x = (Math.random() - 0.5) * options.radiusMax;
+      const y = (Math.random() - 0.5) * options.radiusMax;
+      const z = (Math.random() - 0.5) * options.radiusMax;
+
+      vertices.push(x, y, z);
+    }
+  }
+
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(vertices, 3)
+  );
+  const stars = new THREE.Points(geometry, material);
+  scene.add(stars);
+
+  return material;
 }
 
 // ==================== ANIMATION ====================
@@ -630,6 +642,11 @@ function animate() {
   labelRenderer.render(scene, camera);
 }
 
+// Helper function to calculate rotation increment
+function calculateRotationIncrement(rotationPeriod) {
+  return (Math.PI * 2) / (rotationPeriod * 1000);
+}
+
 function updatePlanetPositions() {
   // Use a fixed time increment based on integer animation speed
   // Scale down by 100 to prevent too fast animation with higher values
@@ -641,20 +658,16 @@ function updatePlanetPositions() {
     const data = PLANET_DATA[name];
     const angle = (time / data.daysInYear) * Math.PI * 2;
 
-    // Ensure minimum orbit distance for visibility and to prevent orbiting inside sun
-    const displayRadius = Math.max(data.orbitRadius, MIN_ORBIT_DISPLAY);
+    // Calculate orbit radius
+    const adjustedRadius = calculatePlanetOrbitRadius(name, data.orbitRadius);
 
-    // Get the planet index for consistent positioning
-    const planetIndex = Object.keys(PLANET_DATA).indexOf(name) - 1; // -1 to skip Sun
-    const randomOffset = planetIndex * 50 + 50;
-    const adjustedRadius = displayRadius + randomOffset;
-
-    // Use precise positioning to prevent jittering
-    planet.position.x = Math.cos(angle) * adjustedRadius;
-    planet.position.z = Math.sin(angle) * adjustedRadius;
+    // Calculate position
+    const position = calculatePlanetPosition(angle, adjustedRadius);
+    planet.position.x = position.x;
+    planet.position.z = position.z;
 
     // Rotate planet with fixed increment to prevent jittering
-    planet.rotation.y += (Math.PI * 2) / (data.rotationPeriod * 1000);
+    planet.rotation.y += calculateRotationIncrement(data.rotationPeriod);
 
     // Update moons if the planet has any
     if (planet.moons) {
@@ -677,14 +690,15 @@ function updatePlanetPositions() {
         moonObj.moon.position.set(moonOrbitRadius, 0, 0);
 
         // Rotate the moon itself
-        moonObj.moon.rotation.y +=
-          (Math.PI * 2) / (moonData.rotationPeriod * 1000);
+        moonObj.moon.rotation.y += calculateRotationIncrement(
+          moonData.rotationPeriod
+        );
       });
     }
   });
 
   // Rotate sun with fixed increment
-  sun.rotation.y += (Math.PI * 2) / (PLANET_DATA.Sun.rotationPeriod * 1000);
+  sun.rotation.y += calculateRotationIncrement(PLANET_DATA.Sun.rotationPeriod);
 }
 
 // Function to update camera position when following a planet
@@ -1065,11 +1079,7 @@ function highlightOrbit(planetName) {
 
     // Create a new geometry with slightly wider dimensions
     orbit.geometry.dispose();
-    orbit.geometry = new THREE.RingGeometry(
-      centerRadius - width * 0.6,
-      centerRadius + width * 0.6,
-      128
-    );
+    orbit.geometry = createOrbitGeometry(centerRadius, width * 0.6, true);
   }
 }
 
@@ -1089,12 +1099,21 @@ function resetOrbitHighlights() {
 
     // Create a new geometry with original dimensions
     orbit.geometry.dispose();
-    orbit.geometry = new THREE.RingGeometry(
-      centerRadius - 20,
-      centerRadius + 20,
-      128
-    );
+    orbit.geometry = createOrbitGeometry(centerRadius, 20, false);
   });
+}
+
+// Helper function to create orbit geometry
+function createOrbitGeometry(centerRadius, widthFactor, isHighlighted) {
+  // For highlighted orbits, we use the width factor directly
+  // For regular orbits, we use a fixed width
+  const halfWidth = isHighlighted ? widthFactor : widthFactor;
+
+  return new THREE.RingGeometry(
+    centerRadius - halfWidth,
+    centerRadius + halfWidth,
+    128
+  );
 }
 
 // Create a follow indicator element if it doesn't exist
@@ -1274,16 +1293,6 @@ function createMoons(planet, planetData) {
 
   // Create each moon
   planetData.moons.forEach((moonData) => {
-    const moonGeometry = new THREE.SphereGeometry(moonData.radius, 32, 32);
-    const moonMaterial = new THREE.MeshPhongMaterial({
-      color: moonData.color,
-      emissive: moonData.color,
-      emissiveIntensity: 0.1,
-      shininess: 30,
-    });
-
-    const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-
     // Calculate safe orbit distance using the utility function
     // Use a larger clearance factor (3.0) for moons to ensure good visibility
     const moonOrbitRadius = calculateSafeOrbitDistance(
@@ -1292,13 +1301,19 @@ function createMoons(planet, planetData) {
       3.0
     );
 
-    // Initial position
-    moon.position.set(moonOrbitRadius, 0, 0);
-
     // Create a pivot for the moon to orbit around
     const moonPivot = new THREE.Group();
     moonSystem.add(moonPivot);
-    moonPivot.add(moon);
+
+    // Create the moon
+    const moon = createCelestialBody({
+      radius: moonData.radius,
+      color: moonData.color,
+      emissiveIntensity: 0.1,
+      x: moonOrbitRadius,
+      parent: moonPivot,
+      addToScene: false,
+    });
 
     // Store the moon and its pivot for animation
     if (!planet.moons) planet.moons = {};
@@ -1309,17 +1324,8 @@ function createMoons(planet, planetData) {
     };
 
     // Create a label for the moon
-    const moonLabel = document.createElement("div");
-    moonLabel.className = "label";
-    moonLabel.textContent = moonData.name;
-    moonLabel.style.display = showLabels ? "block" : "none";
-
-    const moonLabelObject = new THREE.CSS2DObject(moonLabel);
-    moonLabelObject.position.set(0, moonData.radius * 2, 0);
-    moon.add(moonLabelObject);
-
-    // Add the label to the global labels object
-    labels[moonData.name] = moonLabelObject;
+    const labelHeight = moonData.radius * 2;
+    labels[moonData.name] = createLabel(moonData.name, moon, labelHeight);
 
     console.log(
       `Moon ${moonData.name} created for ${planetData.name} at distance:`,
@@ -1337,6 +1343,44 @@ function calculateSafeOrbitDistance(
 ) {
   const minSafeDistance = parentRadius * minClearanceFactor;
   return Math.max(desiredOrbitRadius, minSafeDistance);
+}
+
+// Helper function to calculate planet orbit radius with consistent positioning
+function calculatePlanetOrbitRadius(planetName, orbitRadius) {
+  // Get the planet index for consistent positioning
+  const planetIndex = Object.keys(PLANET_DATA).indexOf(planetName) - 1; // -1 to skip Sun
+
+  // Ensure minimum orbit distance for visibility
+  const displayRadius = Math.max(orbitRadius, MIN_ORBIT_DISPLAY);
+
+  // Add a small random offset to each planet's position to prevent overlap
+  const randomOffset = planetIndex * 50 + 50;
+
+  return displayRadius + randomOffset;
+}
+
+// Helper function to calculate planet position based on time and orbit radius
+function calculatePlanetPosition(angle, orbitRadius) {
+  return {
+    x: Math.cos(angle) * orbitRadius,
+    z: Math.sin(angle) * orbitRadius,
+  };
+}
+
+// Helper function to get planet scale factor based on planet type
+function getPlanetScaleFactor(planetName) {
+  if (
+    planetName === "Jupiter" ||
+    planetName === "Saturn" ||
+    planetName === "Uranus" ||
+    planetName === "Neptune"
+  ) {
+    // Gas giants get a smaller scale factor
+    return 1.5;
+  } else {
+    // Rocky planets get a larger scale factor for visibility
+    return 2.0;
+  }
 }
 
 // Function to toggle the info panel visibility
@@ -1382,56 +1426,76 @@ function adjustStarOpacity() {
   const midDistance = 10000; // Normal viewing distance
   const farDistance = MAX_ZOOM_DISTANCE * 0.5; // Far zoom out
 
-  // Calculate opacity factors based on distance ranges
-  let farStarOpacity, midStarOpacity, nearStarOpacity;
-  let farStarSize, midStarSize, nearStarSize;
+  // Define star layer properties
+  const starLayers = [
+    {
+      material: window.starMaterials.far,
+      minOpacity: 0.05,
+      maxOpacity: 0.4,
+      opacityFactor: 0.35,
+      minSize: 0.5,
+      maxSize: 1.0,
+      sizeFactor: 0.5,
+    },
+    {
+      material: window.starMaterials.mid,
+      minOpacity: 0.1,
+      maxOpacity: 0.5,
+      opacityFactor: 0.4,
+      minSize: 1.0,
+      maxSize: 2.5,
+      sizeFactor: 1.5,
+    },
+    {
+      material: window.starMaterials.near,
+      minOpacity: 0.15,
+      maxOpacity: 0.6,
+      opacityFactor: 0.45,
+      minSize: 1.5,
+      maxSize: 3.5,
+      sizeFactor: 2.0,
+    },
+  ];
 
+  // Calculate interpolation factor based on camera distance
+  let t;
   if (cameraDistance < closeDistance) {
-    // When very close to planets, stars should be barely visible
-    farStarOpacity = 0.05;
-    midStarOpacity = 0.1;
-    nearStarOpacity = 0.15;
-
-    // Default sizes for close viewing
-    farStarSize = 1.0;
-    midStarSize = 2.5;
-    nearStarSize = 3.5;
+    // When very close to planets, use minimum values
+    starLayers.forEach((layer) => {
+      layer.material.opacity = layer.minOpacity;
+      layer.material.size = layer.maxSize;
+    });
+    return;
   } else if (cameraDistance < midDistance) {
     // Normal viewing distance - linear interpolation between close and mid
-    const t = (cameraDistance - closeDistance) / (midDistance - closeDistance);
-    farStarOpacity = 0.05 + t * 0.35; // 0.05 to 0.4
-    midStarOpacity = 0.1 + t * 0.4; // 0.1 to 0.5
-    nearStarOpacity = 0.15 + t * 0.45; // 0.15 to 0.6
+    t = (cameraDistance - closeDistance) / (midDistance - closeDistance);
 
-    // Default sizes for normal viewing
-    farStarSize = 1.0;
-    midStarSize = 2.5;
-    nearStarSize = 3.5;
+    starLayers.forEach((layer) => {
+      layer.material.opacity =
+        layer.minOpacity + t * (layer.maxOpacity - layer.minOpacity);
+      layer.material.size = layer.maxSize; // Keep default size for normal viewing
+    });
   } else {
     // Far zoom out - stars should fade and shrink as we zoom out further
-    const t = Math.min(
+    t = Math.min(
       (cameraDistance - midDistance) / (farDistance - midDistance),
       1
     );
-    farStarOpacity = Math.max(0.4 - t * 0.35, 0.05);
-    midStarOpacity = Math.max(0.5 - t * 0.4, 0.1);
-    nearStarOpacity = Math.max(0.6 - t * 0.45, 0.15);
 
-    // Reduce star sizes when zoomed out
-    farStarSize = Math.max(1.0 - t * 0.5, 0.5); // 1.0 to 0.5
-    midStarSize = Math.max(2.5 - t * 1.5, 1.0); // 2.5 to 1.0
-    nearStarSize = Math.max(3.5 - t * 2.0, 1.5); // 3.5 to 1.5
+    starLayers.forEach((layer) => {
+      // Fade out opacity
+      layer.material.opacity = Math.max(
+        layer.maxOpacity - t * layer.opacityFactor,
+        layer.minOpacity
+      );
+
+      // Reduce size
+      layer.material.size = Math.max(
+        layer.maxSize - t * layer.sizeFactor,
+        layer.minSize
+      );
+    });
   }
-
-  // Apply calculated opacities
-  window.starMaterials.far.opacity = farStarOpacity;
-  window.starMaterials.mid.opacity = midStarOpacity;
-  window.starMaterials.near.opacity = nearStarOpacity;
-
-  // Apply calculated sizes
-  window.starMaterials.far.size = farStarSize;
-  window.starMaterials.mid.size = midStarSize;
-  window.starMaterials.near.size = nearStarSize;
 }
 
 // Initialize when DOM is loaded
