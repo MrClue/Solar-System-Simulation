@@ -1,31 +1,41 @@
 # Solar System Simulation
 
-An interactive web-based simulation of our solar system that allows users to explore and learn about the planets in our solar system. The simulation includes accurate orbital periods, planet sizes (to scale), and interactive controls for time manipulation.
+An interactive 3D web-based simulation of our solar system built with Three.js that allows users to explore and learn about the planets in our solar system. The simulation includes accurate orbital periods, planet sizes (to scale), dynamic lighting, shaders for realistic effects, and interactive controls for time manipulation.
 
 ![image](https://github.com/user-attachments/assets/327778f7-3176-45b1-9f47-05567e85ee6b)
 
-
 ## Features
 
-- Real-time solar system simulation with accurate orbital periods
-- Interactive controls for time manipulation (speed up/slow down time)
+- Fully 3D solar system simulation with accurate orbital periods
+- Realistic shaders for the Sun with dynamic noise patterns and glowing effects
+- Interactive camera controls (orbit, pan, zoom) for immersive exploration
+- Planet selection via sidepanel menu or by clicking directly on planets and their labels
+- Camera follow mode to track planets and moons as they orbit
+- Time controls with variable simulation speed
 - Date and time picker to jump to specific points in time
-- Zoom and pan controls for better exploration
-- Planet selection with detailed information
-- Realistic planet rendering with special effects (Sun glow, Saturn's rings, Earth's atmosphere)
-- Beautiful starry background
-- Responsive design that works on all screen sizes
+- Detailed information panel for selected celestial bodies
+- Special celestial features (Saturn's rings, Earth's moon, Uranus' axial tilt)
+- Beautiful starfield background with parallax effect
+- Responsive, modern UI with glass-panel design
+
+## Technologies
+
+- **Three.js** - For 3D rendering and animation
+- **CSS2DRenderer** - For HTML/CSS planet labels in 3D space
+- **GSAP** - For smooth animations and transitions
+- **Custom Shaders** - For realistic Sun surface and glow effects
+- **Modern CSS** - With glass morphism effects and responsive design
 
 ## Project Structure
 
 ```
 Solar-System-Simulation/
 ├── css/
-│   └── styles.css       # Main stylesheet
+│   └── styles.css       # Main stylesheet with modern glass UI
 ├── js/
-│   └── main.js         # Main JavaScript file with simulation logic
-├── index.html          # Main HTML file
-└── README.md          # Documentation
+│   └── main.js          # Main JavaScript with Three.js implementation
+├── index.html           # Main HTML structure
+└── README.md            # Documentation
 ```
 
 ## Setup
@@ -38,48 +48,60 @@ git clone https://github.com/MrClue/Solar-System-Simulation.git
 
 2. Open the project:
 
-- Simply open `index.html` in a modern web browser
-- Alternatively, use a local development server:
-  ```bash
-  python -m http.server
-  # or
-  php -S localhost:8000
-  ```
+```bash
+# Using Python
+python -m http.server
+
+# Using Node.js with http-server
+npx http-server
+```
+
+3. Open your browser and navigate to `http://localhost:8000` (or the port provided by your server)
 
 ## Controls
 
-- **Speed Slider**: Control the simulation speed (1-365.25 days/second)
-- **Date/Time Picker**: Jump to specific dates and times
-- **Play/Pause**: Control simulation playback
-- **Reset View**: Reset camera position and zoom
-- **Current Position**: Jump to current date and time
-- **Mouse Controls**:
-  - Click on planets to select and focus
+- **Planet Selection**:
+  - Click on planets or their labels in the 3D scene
+  - Use the planet selection menu (top-right corner)
+- **Camera Controls**:
+  - Drag to orbit around the current view
   - Scroll to zoom in/out
-  - Drag to pan the view
+  - Double-click to reset view
+  - ESC to exit planet follow mode
+- **Time Controls**:
+  - Speed Slider: Control simulation speed (1-365 days/second)
+  - Play/Pause: Toggle simulation
+  - Date/Time Picker: Jump to specific date
+  - NOW button: Reset to current date and time
+- **Keyboard Shortcuts**:
+  - R: Reset view
+  - A: Toggle auto-rotation
+  - ESC: Stop following planets
 
 ## Technical Details
+
+### 3D Implementation
+
+- Uses **Three.js** for 3D rendering and scene management
+- Implements **OrbitControls** for smooth camera manipulation
+- Uses **CSS2DRenderer** for planet labels that always face the camera
+- Custom shader materials for the Sun with:
+  - Dynamic noise patterns for surface details
+  - Multiple glow layers for realistic corona effect
+  - Bright emission for proper illumination
 
 ### Planetary Data
 
 The simulation includes accurate data for:
 
-- Orbital periods
-- Relative planet sizes
-- Planet colors and appearances
-- Special effects (Sun's glow, Saturn's rings, Earth's atmosphere and moon)
-
-### Implementation Details
-
-- Uses HTML5 Canvas for rendering
-- Implements smooth camera controls with zoom and pan
-- Real-time date calculations based on J2000 epoch
-- Efficient star background rendering
-- Responsive design for all screen sizes
+- Orbital periods and distances (scaled)
+- Relative planet sizes and colors
+- Rotation periods and axial tilts
+- Special features (rings, moons)
 
 ## Browser Compatibility
 
-The simulation works best in modern browsers that support HTML5 Canvas and modern JavaScript features:
+The simulation works best in modern browsers with WebGL support:
 
 - Chrome (recommended)
 - Firefox
