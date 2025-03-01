@@ -201,24 +201,32 @@ canvas {
 }
 
 .minimize-btn {
-  background: transparent;
+  background: none;
   border: none;
-  color: var(--text-secondary);
+  color: white;
   cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
+  padding: 5px;
+  margin-left: auto;
 }
 
 .minimize-btn:hover {
-  color: var(--primary-color);
+  opacity: 0.8;
 }
 
 .panel-content {
   padding: 20px;
+  transition: all 0.3s ease;
+  max-height: 500px;
+  overflow: hidden;
+}
+
+.panel-content.minimized {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 #selected-planet {

@@ -814,6 +814,12 @@ function initEventListeners() {
   window.addEventListener("resize", onWindowResize);
   renderer.domElement.addEventListener("click", onMouseClick);
 
+  // Add event listener for the info panel minimize button
+  const toggleInfoBtn = document.getElementById("toggle-info");
+  if (toggleInfoBtn) {
+    toggleInfoBtn.addEventListener("click", toggleInfoPanel);
+  }
+
   // Ensure wheel events are properly handled
   renderer.domElement.addEventListener(
     "wheel",
@@ -1309,6 +1315,37 @@ function calculateSafeOrbitDistance(
 ) {
   const minSafeDistance = parentRadius * minClearanceFactor;
   return Math.max(desiredOrbitRadius, minSafeDistance);
+}
+
+// Function to toggle the info panel visibility
+function toggleInfoPanel() {
+  const infoPanel = document.getElementById("info-panel");
+  const panelContent = infoPanel.querySelector(".panel-content");
+  const toggleBtn = document.getElementById("toggle-info");
+
+  // Toggle the minimized class
+  panelContent.classList.toggle("minimized");
+
+  // Check if panel is now minimized
+  const isMinimized = panelContent.classList.contains("minimized");
+
+  if (!isMinimized) {
+    // Panel is maximized
+    // Change button icon to minimize (horizontal line)
+    toggleBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 8H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      </svg>
+    `;
+  } else {
+    // Panel is minimized
+    // Change button icon to maximize (plus sign)
+    toggleBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 8H14M8 2V14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      </svg>
+    `;
+  }
 }
 
 // Initialize when DOM is loaded
