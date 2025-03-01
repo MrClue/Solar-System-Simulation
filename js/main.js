@@ -684,12 +684,24 @@ function updateCameraFollow() {
 
   const position = planet.position.clone();
 
-  // Only update the controls target to follow the planet
-  // This allows the user to still zoom and pan while following
+  // Update the controls target to follow the planet
   controls.target.lerp(position, 0.1);
 
-  // We don't automatically move the camera position anymore
-  // This allows the user to maintain their relative position while the target updates
+  // Calculate the current offset vector from target to camera
+  const offset = new THREE.Vector3().subVectors(
+    camera.position,
+    controls.target
+  );
+
+  // Maintain this relative offset as the target moves
+  // This creates a smoother following effect while preserving the user's viewing angle
+  const newCameraPosition = position.clone().add(offset);
+
+  // Smoothly move the camera to maintain the same relative position
+  camera.position.lerp(newCameraPosition, 0.1);
+
+  // Update controls
+  controls.update();
 }
 
 // ==================== UI CONTROLS ====================
