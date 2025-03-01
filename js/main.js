@@ -647,6 +647,34 @@ function createLabel(name, parent, height, options = {}) {
   label.textContent = name;
   label.style.display = showLabels ? "block" : "none";
 
+  // Add click event listener to the label
+  label.addEventListener("click", function (event) {
+    // Stop propagation to prevent double triggering from canvas click
+    event.stopPropagation();
+
+    // Find the object associated with this label
+    let targetObject;
+
+    if (name === "Sun") {
+      targetObject = sun;
+    } else if (planets[name]) {
+      targetObject = planets[name];
+    } else {
+      // Check if it's a moon by looking through all planets' moons
+      Object.entries(planets).forEach(([planetName, planet]) => {
+        if (planet.moons && planet.moons[name]) {
+          targetObject = planet.moons[name].moon;
+        }
+      });
+    }
+
+    // If we found the object, focus on it
+    if (targetObject) {
+      focusOnPlanet(targetObject);
+      updateInfoPanel(targetObject);
+    }
+  });
+
   const labelObject = new THREE.CSS2DObject(label);
   labelObject.position.set(0, height, 0);
 
@@ -1156,6 +1184,19 @@ function onWindowResize() {
 }
 
 function onMouseClick(event) {
+  // Check if the click was on a label element or its child
+  // If it was, the label's own click handler will handle it
+  const clickedElement = event.target;
+  if (
+    (clickedElement.classList && clickedElement.classList.contains("label")) ||
+    (clickedElement.parentElement &&
+      clickedElement.parentElement.classList &&
+      clickedElement.parentElement.classList.contains("label"))
+  ) {
+    return; // Exit if clicked on a label
+  }
+
+  // Otherwise, process as a normal scene click
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 

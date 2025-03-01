@@ -598,9 +598,16 @@ input[type="time"]::-webkit-inner-spin-button {
   border-radius: 4px;
   user-select: none;
   text-align: center;
-  pointer-events: none;
+  pointer-events: auto;
   white-space: nowrap;
   box-shadow: 0 0 10px rgba(100, 255, 218, 0.3);
+  cursor: pointer;
+}
+
+.label:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(100, 255, 218, 0.5);
 }
 
 /* ===== PLANET TOOLTIP ===== */
