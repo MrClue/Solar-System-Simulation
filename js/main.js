@@ -12,7 +12,7 @@ let selectedPlanet = null; // Track the currently selected planet
 let followingPlanet = false; // Whether camera is following a planet
 
 // ==================== CONSTANTS ====================
-const ORBITAL_FACTOR = 10000; // Spread planets out
+const ORBITAL_FACTOR = 5000; // Spread planets out
 const MIN_ORBIT_DISPLAY = 800; // Minimum orbit display size
 const SIZE_FACTOR = 0.05; // Planet size factor
 const SUN_SIZE_FACTOR = 0.005; // Sun size factor
