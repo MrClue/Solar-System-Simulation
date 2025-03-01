@@ -748,12 +748,21 @@ function updateSpeedDisplay() {
 }
 
 function resetView() {
-  // Reset orbit highlights
-  resetOrbitHighlights();
+  // Reset camera position
+  camera.position.set(0, 50, 150);
+  controls.target.set(0, 0, 0);
+  controls.update();
 
-  // Reset following state
+  // Reset selection
+  resetOrbitHighlights();
   followingPlanet = false;
   selectedPlanet = null;
+
+  // Reset panel header to "SOLAR SYSTEM"
+  const panelHeader = document.querySelector("#info-panel .panel-header h2");
+  if (panelHeader) {
+    panelHeader.textContent = "SOLAR SYSTEM";
+  }
 
   // Hide follow indicator
   const followIndicator = document.getElementById("follow-indicator");
@@ -1136,6 +1145,12 @@ function updateInfoPanel(object) {
   }
 
   if (!objectData) return; // Object data not found
+
+  // Update the panel header with the object name
+  const panelHeader = document.querySelector("#info-panel .panel-header h2");
+  if (panelHeader) {
+    panelHeader.textContent = objectName.toUpperCase();
+  }
 
   // Update the description
   document.getElementById("selected-planet").textContent =
